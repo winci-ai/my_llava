@@ -5,8 +5,8 @@ cd ..
 LLM_VERSION=TinyLlama/TinyLlama-1.1B-Chat-v1.0
 # VT_VERSION=openai/clip-vit-base-patch16
 VT_VERSION=eva_clip/EVA02_CLIP_L_336_psz14_s6B.pt
-DATA_PATH=/root/autodl-tmp/code/llava/llava_pretrain/blip_laion_cc_sbu_558k.json
-IMAGE_PATH=/root/autodl-tmp/code/llava/llava_pretrain/images
+DATA_PATH=/home/ai/data/llava/dataset/text_files/llava_v1_5_mix665k.json
+IMAGE_PATH=/home/ai/data/llava/dataset/
 VT_VARIANT="${VT_VERSION#*/}"
 LLM_VARIANT="${LLM_VERSION#*/}"
 VERSION=base
