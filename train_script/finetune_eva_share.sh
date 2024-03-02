@@ -25,7 +25,7 @@ deepspeed tinyllava/train/train.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --pretrain_mm_mlp_adapter ./checkpoints/tiny-llava-${VERSION}-${LLM_VARIANT}-${VT_VARIANT}-pretrain/mm_projector.bin \
-    --bf16 True \
+    --fp16 True \
     --output_dir ./checkpoints/tiny-llava-${VERSION}-${LLM_VARIANT}-${VT_VARIANT}-finetune \
     --num_train_epochs 1 \
     --per_device_train_batch_size 8 \

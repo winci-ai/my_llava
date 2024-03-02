@@ -26,7 +26,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 deepspeed tinyllava/train/train.py \
     --tune_entire_model True \
     --tune_vit_from_layer $TUNE_FROM \
     --pretrain_mm_mlp_adapter ./checkpoints/tiny-llava-${VERSION}-${LLM_VARIANT}-${VT_VARIANT}-pretrain/mm_projector.bin \
-    --bf16 True \
+    --fp16 True \
     --output_dir ./checkpoints/tiny-llava-"${VERSION}"-"${LLM_VARIANT}"-"${VT_VARIANT}"-pretrain \
     --num_train_epochs 1 \
     --per_device_train_batch_size 8 \
