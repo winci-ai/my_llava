@@ -836,10 +836,10 @@ class Eva2LargePlusEncoder(nn.Module):
         }
 
         self.config['vision_tower_path'] = vision_tower_path
-        self.model = _build_vision_tower(**self.config)
+        self.vision_model = _build_vision_tower(**self.config)
 
     def forward(self, image, **kwargs):
-        encode = self.model(image, return_all_features=True)[:, 1:, :]
+        encode = self.vision_model(image, return_all_features=True)[:, 1:, :]
         return encode
 
     @property
