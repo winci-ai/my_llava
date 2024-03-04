@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from einops import rearrange, repeat
 import logging
-
+from transformers import PretrainedConfig
 
 def broadcat(tensors, dim=-1):
     num_tensors = len(tensors)
@@ -522,8 +522,9 @@ class EVAVisionTransformer(nn.Module):
                  drop_path_rate=0., norm_layer=nn.LayerNorm, init_values=None, patch_dropout=0.,
                  use_abs_pos_emb=True, use_rel_pos_bias=False, use_shared_rel_pos_bias=False, rope=False,
                  use_mean_pooling=True, init_scale=0.001, grad_checkpointing=False, xattn=False, postnorm=False,
-                 pt_hw_seq_len=16, intp_freq=False, naiveswiglu=False, subln=False):
+                 pt_hw_seq_len=16, intp_freq=False, naiveswiglu=False, subln=False, config=None):
         super().__init__()
+        self.config = config
         self.image_size = img_size
         self.num_classes = num_classes
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
@@ -741,7 +742,7 @@ except:
 
 
 @dataclass
-class CLIPVisionCfg:
+class CLIPVisionCfg(PretrainedConfig):
     layers: Union[Tuple[int, int, int, int], int] = 12
     width: int = 768
     head_width: int = 64
@@ -801,7 +802,8 @@ def _build_vision_tower(
             pt_hw_seq_len=vision_cfg.pt_hw_seq_len,  # 224/14
             intp_freq=vision_cfg.intp_freq,
             naiveswiglu=vision_cfg.naiveswiglu,
-            subln=vision_cfg.subln
+            subln=vision_cfg.subln,
+            config=vision_cfg,
         )
 
         state_dict = load_clip_visual_state_dict(vision_tower_path)
