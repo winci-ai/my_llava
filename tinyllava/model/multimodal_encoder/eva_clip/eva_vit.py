@@ -720,14 +720,18 @@ def load_clip_visual_state_dict(checkpoint_path: str, map_location: str = 'cpu',
     state_dict = load_state_dict(checkpoint_path, map_location=map_location, is_openai=is_openai, skip_list=skip_list)
 
     for k in list(state_dict.keys()):
-        if not k.startswith('visual.'):
+        if not k.startswith('visual.') or not k.startswith('vision_model.'):
             del state_dict[k]
+
     for k in list(state_dict.keys()):
         if k.startswith('visual.'):
             new_k = k[7:]
+        elif k.startswith('vision_model.'):
+            new_k = k[12:]
             state_dict[new_k] = state_dict[k]
             del state_dict[k]
     return state_dict
+
 
 
 from dataclasses import dataclass
@@ -805,7 +809,7 @@ def _build_vision_tower(
             subln=vision_cfg.subln,
             config=vision_cfg,
         )
-
+        
         state_dict = load_clip_visual_state_dict(vision_tower_path)
         incompatible_keys = visual.load_state_dict(state_dict, strict=False)
         print('EVA-CLIP incompatible_keys:', incompatible_keys)
