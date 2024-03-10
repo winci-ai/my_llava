@@ -2,6 +2,7 @@ from typing import Dict, Optional, Sequence, List
 import copy
 
 import transformers
+import tokenizers
 import torch
 
 from tinyllava.data.process import register_preprocess
@@ -11,7 +12,6 @@ from tinyllava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_T
     DEFAULT_IM_END_TOKEN
 
 from packaging import version
-import tokenizers
 
 IS_TOKENIZER_GREATER_THAN_0_14 = version.parse(tokenizers.__version__) >= version.parse('0.14')
 
