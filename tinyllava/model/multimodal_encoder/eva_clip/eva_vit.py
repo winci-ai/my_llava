@@ -789,6 +789,9 @@ class EVAVisionTransformer(nn.Module):
 
 
 class EvaClipVisionModel(EvaClipPreTrainedModel):
+    
+    config_class = EvaClipVisionConfig
+
     def __init__(self, config: EvaClipVisionConfig):
         super(EvaClipVisionModel, self).__init__()
 
