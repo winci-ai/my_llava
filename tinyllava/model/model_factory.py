@@ -18,15 +18,8 @@ def ModelSelect(model_name_or_path):
 def TokenizerSelect(model_name_or_path):
     tokenizer_init = None
     for name in TOKENIZER_REGISTRY.keys():
-        if name in model_name_or_path.lower():
+        if name.lower() in model_name_or_path.lower():
             tokenizer_init = TOKENIZER_REGISTRY[name]
-        # FIXME: Find a more elegant way to do this
-        if name == 'phi':
-            MODEL_REGISTRY['TinyLLaVA-3.1B'] = cls
-        elif name == 'stablelm':
-            MODEL_REGISTRY['TinyLLaVA-2.0B'] = cls
-        elif name == 'llama':
-            MODEL_REGISTRY['TinyLLaVA-1.5B'] = cls
     if tokenizer_init is None:
         tokenizer_init = TOKENIZER_REGISTRY['llama']
     return tokenizer_init
@@ -38,6 +31,13 @@ def register_model(name):
             return MODEL_REGISTRY[name]
 
         MODEL_REGISTRY[name] = cls
+        # FIXME: Find a more elegant way to do this
+        if name == 'phi':
+            MODEL_REGISTRY['TinyLLaVA-3.1B'] = cls
+        elif name == 'stablelm':
+            MODEL_REGISTRY['TinyLLaVA-2.0B'] = cls
+        elif name == 'llama':
+            MODEL_REGISTRY['TinyLLaVA-1.5B'] = cls
         return cls
 
     return register_model_cls
@@ -49,6 +49,13 @@ def register_tokenizer(name):
             return TOKENIZER_REGISTRY[name]
 
         TOKENIZER_REGISTRY[name] = cls
+        # FIXME: Find a more elegant way to do this
+        if name == 'phi':
+            TOKENIZER_REGISTRY['TinyLLaVA-3.1B'] = cls
+        elif name == 'stablelm':
+            TOKENIZER_REGISTRY['TinyLLaVA-2.0B'] = cls
+        elif name == 'llama':
+            TOKENIZER_REGISTRY['TinyLLaVA-1.5B'] = cls
         return cls
 
     return register_tokenizer_cls

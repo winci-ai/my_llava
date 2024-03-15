@@ -6,6 +6,8 @@
 
 
 ## &#x1F389; News
+* **[2024.03.10]**  base recipe out!
+* **[2024.03.10]**  Finetune scripts out!
 * **[2024.02.25]**  Update evaluation scripts and docs!
 * **[2024.02.25]**  Data descriptions out. Release TinyLLaVA-1.5B and TinyLLaVA-2.0B!
 * **[2024.02.24]**  Example code on inference and model loading added!
@@ -17,6 +19,7 @@
 ## &#x231B; TODO
 - [ ] Add support for Ollama and llama.cpp.
 - [ ] Developers' guide / How to build demo locally.
+- [ ] Training and custom finetuning docs.
 - [x] Model Zoo descriptions.
 - [x] Examples and inference.
 - [x] Release code for training.
@@ -31,14 +34,14 @@
 
 ## &#x1F433; Model Zoo
 ### Legacy Model
-> https://huggingface.co/bczhou/tiny-llava-v1-hf
+- [tiny-llava-hf](https://huggingface.co/bczhou/tiny-llava-v1-hf)
 
-### Pretrained Model
+### Pretrained Models
 - [TinyLLaVA-3.1B](https://huggingface.co/bczhou/TinyLLaVA-3.1B)
 - [TinyLLaVA-2.0B](https://huggingface.co/bczhou/TinyLLaVA-2.0B)
 - [TinyLLaVA-1.5B](https://huggingface.co/bczhou/TinyLLaVA-1.5B)
 
-### Model Zoo
+### Model Details
 | Name          | LLM               | Checkpoint                                     | LLaVA-Bench-Wild | MME      | MMBench | MM-Vet | SQA-image | VQA-v2 | GQA   | TextVQA |
 |---------------|-------------------|------------------------------------------------|------------------|----------|---------|--------|-----------|--------|-------|---------|
 | TinyLLaVA-3.1B | Phi-2             | [TinyLLaVA-3.1B](https://huggingface.co/bczhou/TinyLLaVA-3.1B) | 75.8             | 1464.9   | 66.9    | 32.0   | 69.1      | 79.9   | 62.0  | 59.1    |

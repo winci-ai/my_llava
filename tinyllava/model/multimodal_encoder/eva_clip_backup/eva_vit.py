@@ -624,6 +624,10 @@ class EVAVisionTransformer(nn.Module):
             param.requires_grad = False
 
     @torch.jit.ignore
+    def set_grad_checkpointing(self, enable=True):
+        self.grad_checkpointing = enable
+
+    @torch.jit.ignore
     def no_weight_decay(self):
         return {'pos_embed', 'cls_token'}
 
@@ -797,7 +801,6 @@ def _build_vision_tower(
             drop_path_rate=vision_cfg.drop_path_rate,
             norm_layer=partial(FusedLayerNorm, eps=1e-6) if vision_cfg.fusedLN else partial(norm_layer, eps=1e-6),
             xattn=vision_cfg.xattn,
-            grad_checkpointing=vision_cfg.grad_checkpointing,
             rope=vision_cfg.rope,
             postnorm=vision_cfg.postnorm,
             pt_hw_seq_len=vision_cfg.pt_hw_seq_len,  # 224/14
@@ -837,9 +840,8 @@ class Eva2LargePlusEncoder(nn.Module):
                 "subln": True
             }
         }
-        self.grad_checkpointing = False
+
         self.config['vision_tower_path'] = vision_tower_path
-        self.config['grad_checkpointing'] = self.grad_checkpointing
         self.vision_model = _build_vision_tower(**self.config)
 
 
@@ -854,7 +856,3 @@ class Eva2LargePlusEncoder(nn.Module):
     @property
     def device(self):
         return list(self.parameters())[-1].device
-    
-    @torch.jit.ignore
-    def set_grad_checkpointing(self, enable=True):
-        self.grad_checkpointing = enable

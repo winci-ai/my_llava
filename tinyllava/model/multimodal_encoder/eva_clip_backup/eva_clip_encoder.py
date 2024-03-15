@@ -4,6 +4,7 @@ import torch.nn as nn
 from .eva_clip_processors import EvaClipImageTrainProcessor
 from .eva_vit import Eva2LargePlusEncoder
 
+
 class EvaClipVisionTower(nn.Module):
     def __init__(self, vision_tower, args, delay_load=False):
         super().__init__()
