@@ -68,6 +68,7 @@ class EvaClipVisionConfig(PretrainedConfig):
 
         if config_dict.get("model_type") == "evaclip":
             config_dict = config_dict["vision_config"]
+            print(config_dict)
 
         if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
             logger.warning(
