@@ -1,0 +1,27 @@
+{
+  "architectures": [
+    "EvaClipModel"
+  ],
+  "model_type": "evaclip",
+  "vision_config": {
+    "embed dim": 768,
+    "drop_path_rate": 0,
+    "eva_model_name": "eva-clip-l-14-336",
+    "fusedLN": true,
+    "head_width": 64,
+    "image_size": 336,
+    "intp_freq": true,
+    "layers": 24,
+    "mlp_ratio": 2.6667,
+    "naiveswiglu": true,
+    "patch_size": 14,
+    "postnorm": false,
+    "pt_hw_seq_len": 16,
+    "qkv_bias": true,
+    "rope": true,
+    "subln": true,
+    "transformers_version": "4.37.2",
+    "width": 1024,
+    "xattn": true
+  }
+}

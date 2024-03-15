@@ -32,6 +32,8 @@ class EvaClipVisionConfig(PretrainedConfig):
             rope=True,
             pt_hw_seq_len=16,
             intp_freq=True,
+            qkv_bias=True,
+            postnorm=False,
             naiveswiglu=True,
             subln=True,
             **kwargs,
@@ -51,6 +53,8 @@ class EvaClipVisionConfig(PretrainedConfig):
         self.rope = rope,
         self.pt_hw_seq_len = pt_hw_seq_len,
         self.intp_freq = intp_freq,
+        self.qkv_bias = qkv_bias,
+        self.postnorm = postnorm,
         self.naiveswiglu = naiveswiglu,
         self.subln = subln,
 
