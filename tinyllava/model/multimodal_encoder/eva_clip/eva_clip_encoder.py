@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 
 from .eva_clip_processors import EvaClipImageTrainProcessor
-from .eva_vit import Eva2LargePlusEncoder
+from .eva_vit import EvaClipVisionModel
+
+
 
 class EvaClipVisionTower(nn.Module):
     def __init__(self, vision_tower, args, delay_load=False):
@@ -20,7 +22,8 @@ class EvaClipVisionTower(nn.Module):
 
     def load_model(self):
         self.image_processor = EvaClipImageTrainProcessor(self.config.image_size)
-        self.vision_tower = Eva2LargePlusEncoder(self.vision_tower_path)
+        #self.vision_tower = Eva2LargePlusEncoder(self.vision_tower_path)
+        self.vision_tower = EvaClipVisionModel.from_pretrained(self.vision_tower_path)
         self.vision_tower.requires_grad_(False)
 
         self.is_loaded = True

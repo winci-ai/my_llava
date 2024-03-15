@@ -9,6 +9,91 @@ from einops import rearrange, repeat
 import logging
 from transformers import PretrainedConfig
 
+from dataclasses import dataclass
+from typing import Optional, Tuple, Union
+
+
+
+class EvaClipVisionConfig(PretrainedConfig):
+    model_type = "evaclip_vision_model"
+    def __init__(
+            self,
+            embed_dim=768,
+            image_size=336,
+            layers=24,
+            width=1024,
+            drop_path_rate=0,
+            head_width=64,
+            mlp_ratio=2.6667,
+            patch_size=14,
+            eva_model_name="eva-clip-l-14-336",
+            xattn=True,
+            fusedLN=True,
+            rope=True,
+            pt_hw_seq_len=16,
+            intp_freq=True,
+            naiveswiglu=True,
+            subln=True,
+            **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.embed_dim = embed_dim
+        self.image_size = image_size,
+        self.layers = layers,
+        self.width = width,
+        self.drop_path_rate = drop_path_rate,
+        self.head_width = head_width,
+        self.mlp_ratio = mlp_ratio,
+        self.patch_size = patch_size,
+        self.eva_model_name = eva_model_name,
+        self.xattn = xattn,
+        self.fusedLN =fusedLN,
+        self.rope = rope,
+        self.pt_hw_seq_len = pt_hw_seq_len,
+        self.intp_freq = intp_freq,
+        self.naiveswiglu = naiveswiglu,
+        self.subln = subln,
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
+        cls._set_token_in_kwargs(kwargs)
+
+        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+
+        # get the vision config dict if we are loading from SigLipConfig
+
+        if config_dict.get("model_type") == "evaclip":
+            config_dict = config_dict["vision_config"]
+
+        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+            logger.warning(
+                f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
+                f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
+            )
+
+        return cls.from_dict(config_dict, **kwargs)
+
+
+from transformers.modeling_utils import PreTrainedModel
+from transformers import PretrainedConfig
+
+
+    
+class EvaClipPreTrainedModel(PreTrainedModel):
+    """
+    An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
+    models.
+    """
+
+    config_class = EvaClipVisionConfig
+    base_model_prefix = "eva-clip"
+    supports_gradient_checkpointing = True
+
+    def _init_weights(self, module):
+        """Initialize the weights"""
+        pass
+
+
 def broadcat(tensors, dim=-1):
     num_tensors = len(tensors)
     shape_lens = set(list(map(lambda t: len(t.shape), tensors)))
@@ -93,6 +178,7 @@ class VisionRotaryEmbeddingFast(nn.Module):
             return t * freqs_cos + rotate_half(t) * freqs_sin
 
         return t * self.freqs_cos + rotate_half(t) * self.freqs_sin
+
 
 
 class LayerNorm(nn.LayerNorm):
@@ -513,24 +599,37 @@ class RelativePositionBias(nn.Module):
         return relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
 
 
+
+try:
+    from apex.normalization import FusedLayerNorm
+except:
+    FusedLayerNorm = LayerNorm
+    print(
+        "Please build and install Nvidia apex package with option '--cuda_ext' according to https://github.com/NVIDIA/apex#from-source .")
+    
 class EVAVisionTransformer(nn.Module):
     """ Vision Transformer with support for patch or hybrid CNN input stage
     """
-
-    def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=1000, embed_dim=768, depth=12,
-                 num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
-                 drop_path_rate=0., norm_layer=nn.LayerNorm, init_values=None, patch_dropout=0.,
-                 use_abs_pos_emb=True, use_rel_pos_bias=False, use_shared_rel_pos_bias=False, rope=False,
-                 use_mean_pooling=True, init_scale=0.001, grad_checkpointing=False, xattn=False, postnorm=False,
-                 pt_hw_seq_len=16, intp_freq=False, naiveswiglu=False, subln=False, config=None):
+    def __init__(self, config: EvaClipVisionConfig, drop_rate=0., use_abs_pos_emb=True, 
+                 use_rel_pos_bias=False, use_shared_rel_pos_bias=False, attn_drop_rate=0.,
+                 init_scale=0.001, grad_checkpointing=False, qk_scale=None, 
+                 ):
+        
         super().__init__()
+        in_chans = 3
+        embed_dim = config.width
+        depth = config.layers
+        num_heads = config.width // config.head_width
+
+        norm_layer = partial(FusedLayerNorm, eps=1e-6) if config.fusedLN else partial(LayerNorm, eps=1e-6),
         self.config = config
-        self.image_size = img_size
-        self.num_classes = num_classes
+        self.image_size = config.image_size
+        self.num_classes = config.embed_dim
+
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
 
         self.patch_embed = PatchEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
+            img_size=config.image_size, patch_size=config.patch_size, in_chans=in_chans, embed_dim=embed_dim)
         num_patches = self.patch_embed.num_patches
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
@@ -546,32 +645,32 @@ class EVAVisionTransformer(nn.Module):
         else:
             self.rel_pos_bias = None
 
-        if rope:
+        if config.rope:
             half_head_dim = embed_dim // num_heads // 2
-            hw_seq_len = img_size // patch_size
+            hw_seq_len = config.image_size // config.patch_size
             self.rope = VisionRotaryEmbeddingFast(
                 dim=half_head_dim,
-                pt_seq_len=pt_hw_seq_len,
-                ft_seq_len=hw_seq_len if intp_freq else None,
+                pt_seq_len=config.pt_hw_seq_len,
+                ft_seq_len=hw_seq_len if config.intp_freq else None,
                 # patch_dropout=patch_dropout
             )
         else:
             self.rope = None
 
-        self.naiveswiglu = naiveswiglu
+        self.naiveswiglu = config.naiveswiglu
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
+        dpr = [x.item() for x in torch.linspace(0, config.drop_path_rate, depth)]  # stochastic depth decay rule
         self.use_rel_pos_bias = use_rel_pos_bias
         self.blocks = nn.ModuleList([
             Block(
-                dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, qk_scale=qk_scale,
-                drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer,
-                init_values=init_values, window_size=self.patch_embed.patch_shape if use_rel_pos_bias else None,
-                xattn=xattn, rope=self.rope, postnorm=postnorm, subln=subln, naiveswiglu=naiveswiglu)
+                dim=embed_dim, num_heads=num_heads, mlp_ratio=config.mlp_ratio, qkv_bias=config.qkv_bias, qk_scale=qk_scale,
+                drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer, 
+                init_values=config.init_values, window_size=self.patch_embed.patch_shape if use_rel_pos_bias else None,
+                xattn=config.xattn, rope=self.rope, postnorm=config.postnorm, subln=config.subln, naiveswiglu=config.naiveswiglu)
             for i in range(depth)])
-        self.norm = nn.Identity() if use_mean_pooling else norm_layer(embed_dim)
-        self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
-        self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        self.norm = nn.Identity() if config.use_mean_pooling else norm_layer(embed_dim)
+        self.fc_norm = norm_layer(embed_dim) if config.use_mean_pooling else None
+        self.head = nn.Linear(embed_dim, config.embed_dim) if config.embed_dim > 0 else nn.Identity()
 
         if self.pos_embed is not None:
             trunc_normal_(self.pos_embed, std=.02)
@@ -588,7 +687,7 @@ class EVAVisionTransformer(nn.Module):
             self.head.bias.data.mul_(init_scale)
 
         # setting a patch_dropout of 0. would mean it is disabled and this function would be the identity fn
-        self.patch_dropout = PatchDropout(patch_dropout) if patch_dropout > 0. else nn.Identity()
+        self.patch_dropout = PatchDropout(config.patch_dropout) if config.patch_dropout > 0. else nn.Identity()
 
         self.grad_checkpointing = grad_checkpointing
 
@@ -626,6 +725,10 @@ class EVAVisionTransformer(nn.Module):
     @torch.jit.ignore
     def no_weight_decay(self):
         return {'pos_embed', 'cls_token'}
+    
+    @torch.jit.ignore
+    def set_grad_checkpointing(self, enable=True):
+        self.grad_checkpointing = enable
 
     def get_classifier(self):
         return self.head
@@ -681,167 +784,11 @@ class EVAVisionTransformer(nn.Module):
         return x
 
 
-def load_state_dict(checkpoint_path: str, map_location: str = 'cpu', model_key: str = 'model|module|state_dict',
-                    is_openai: bool = False, skip_list: list = []):
-    if is_openai:
-        model = torch.jit.load(checkpoint_path, map_location="cpu").eval()
-        state_dict = model.state_dict()
-        for key in ["input_resolution", "context_length", "vocab_size"]:
-            state_dict.pop(key, None)
-    else:
-        checkpoint = torch.load(checkpoint_path, map_location=map_location)
-        for mk in model_key.split('|'):
-            if isinstance(checkpoint, dict) and mk in checkpoint:
-                state_dict = checkpoint[mk]
-                break
-            else:
-                state_dict = checkpoint
-        if next(iter(state_dict.items()))[0].startswith('module'):
-            state_dict = {k[7:]: v for k, v in state_dict.items()}
+class EvaClipVisionModel(EvaClipPreTrainedModel):
+    def __init__(self, config: EvaClipVisionConfig):
+        super(EvaClipVisionModel, self).__init__()
 
-    for k in skip_list:
-        if k in list(state_dict.keys()):
-            logging.info(f"Removing key {k} from pretrained checkpoint")
-            del state_dict[k]
-
-    if os.getenv('RoPE') == '1':
-        for k in list(state_dict.keys()):
-            if 'freqs_cos' in k or 'freqs_sin' in k:
-                del state_dict[k]
-    return state_dict
-
-
-def load_clip_visual_state_dict(checkpoint_path: str, map_location: str = 'cpu', is_openai: bool = False,
-                                skip_list: list = []):
-    state_dict = load_state_dict(checkpoint_path, map_location=map_location, is_openai=is_openai, skip_list=skip_list)
-
-    for k in list(state_dict.keys()):
-        if not k.startswith('visual.') or not k.startswith('vision_model.'):
-            del state_dict[k]
-
-    for k in list(state_dict.keys()):
-        if k.startswith('visual.'):
-            new_k = k[7:]
-        elif k.startswith('vision_model.'):
-            new_k = k[12:]
-            state_dict[new_k] = state_dict[k]
-            del state_dict[k]
-    return state_dict
-
-
-
-from dataclasses import dataclass
-from typing import Optional, Tuple, Union
-
-try:
-    from apex.normalization import FusedLayerNorm
-except:
-    FusedLayerNorm = LayerNorm
-    print(
-        "Please build and install Nvidia apex package with option '--cuda_ext' according to https://github.com/NVIDIA/apex#from-source .")
-
-
-@dataclass
-class CLIPVisionCfg(PretrainedConfig):
-    layers: Union[Tuple[int, int, int, int], int] = 12
-    width: int = 768
-    head_width: int = 64
-    mlp_ratio: float = 4.0
-    patch_size: int = 16
-    image_size: Union[Tuple[int, int], int] = 224
-    ls_init_value: Optional[float] = None  # layer scale initial value
-    patch_dropout: float = 0.  # what fraction of patches to dropout during training (0 would mean disabled and no patches dropped) - 0.5 to 0.75 recommended in the paper for optimal results
-    global_average_pool: bool = False  # whether to global average pool the last embedding layer, instead of using CLS token (https://arxiv.org/abs/2205.01580)
-    drop_path_rate: Optional[float] = None  # drop path rate
-    timm_model_name: str = None  # a valid model name overrides layers, width, patch_size
-    timm_model_pretrained: bool = False  # use (imagenet) pretrained weights for named model
-    timm_pool: str = 'avg'  # feature pooling for timm model ('abs_attn', 'rot_attn', 'avg', '')
-    timm_proj: str = 'linear'  # linear projection for timm model output ('linear', 'mlp', '')
-    timm_proj_bias: bool = False  # enable bias final projection
-    eva_model_name: str = None  # a valid eva model name overrides layers, width, patch_size
-    qkv_bias: bool = True
-    fusedLN: bool = False
-    xattn: bool = False
-    postnorm: bool = False
-    rope: bool = False
-    pt_hw_seq_len: int = 16  # 224/14
-    intp_freq: bool = False
-    naiveswiglu: bool = False
-    subln: bool = False
-
-
-def _build_vision_tower(
-        vision_tower_path: str,
-        embed_dim: int,
-        vision_cfg: CLIPVisionCfg
-):
-    if isinstance(vision_cfg, dict):
-        vision_cfg = CLIPVisionCfg(**vision_cfg)
-
-    if vision_cfg.eva_model_name:
-        vision_heads = vision_cfg.width // vision_cfg.head_width
-        norm_layer = LayerNorm
-
-        visual = EVAVisionTransformer(
-            img_size=vision_cfg.image_size,
-            patch_size=vision_cfg.patch_size,
-            num_classes=embed_dim,
-            use_mean_pooling=vision_cfg.global_average_pool,  # False
-            init_values=vision_cfg.ls_init_value,
-            patch_dropout=vision_cfg.patch_dropout,
-            embed_dim=vision_cfg.width,
-            depth=vision_cfg.layers,
-            num_heads=vision_heads,
-            mlp_ratio=vision_cfg.mlp_ratio,
-            qkv_bias=vision_cfg.qkv_bias,
-            drop_path_rate=vision_cfg.drop_path_rate,
-            norm_layer=partial(FusedLayerNorm, eps=1e-6) if vision_cfg.fusedLN else partial(norm_layer, eps=1e-6),
-            xattn=vision_cfg.xattn,
-            grad_checkpointing=vision_cfg.grad_checkpointing,
-            rope=vision_cfg.rope,
-            postnorm=vision_cfg.postnorm,
-            pt_hw_seq_len=vision_cfg.pt_hw_seq_len,  # 224/14
-            intp_freq=vision_cfg.intp_freq,
-            naiveswiglu=vision_cfg.naiveswiglu,
-            subln=vision_cfg.subln,
-            config=vision_cfg,
-        )
-        
-        state_dict = load_clip_visual_state_dict(vision_tower_path)
-        incompatible_keys = visual.load_state_dict(state_dict, strict=False)
-        print('EVA-CLIP incompatible_keys:', incompatible_keys)
-
-    return visual
-
-
-class Eva2LargePlusEncoder(nn.Module):
-    def __init__(self, vision_tower_path):
-        super(Eva2LargePlusEncoder, self).__init__()
-        self.config = {
-            "embed_dim": 768,
-            "vision_cfg": {
-                "image_size": 336,
-                "layers": 24,
-                "width": 1024,
-                "drop_path_rate": 0,
-                "head_width": 64,
-                "mlp_ratio": 2.6667,
-                "patch_size": 14,
-                "eva_model_name": "eva-clip-l-14-336",
-                "xattn": True,
-                "fusedLN": True,
-                "rope": True,
-                "pt_hw_seq_len": 16,
-                "intp_freq": True,
-                "naiveswiglu": True,
-                "subln": True
-            }
-        }
-        self.grad_checkpointing = False
-        self.config['vision_tower_path'] = vision_tower_path
-        self.config['grad_checkpointing'] = self.grad_checkpointing
-        self.vision_model = _build_vision_tower(**self.config)
-
+        self.vision_model = EVAVisionTransformer(config)
 
     def forward(self, image, **kwargs):
         encode = self.vision_model(image, return_all_features=True)[:, 1:, :]
@@ -854,7 +801,4 @@ class Eva2LargePlusEncoder(nn.Module):
     @property
     def device(self):
         return list(self.parameters())[-1].device
-    
-    @torch.jit.ignore
-    def set_grad_checkpointing(self, enable=True):
-        self.grad_checkpointing = enable
+
