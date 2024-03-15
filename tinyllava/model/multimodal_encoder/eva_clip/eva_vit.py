@@ -623,6 +623,8 @@ class EVAVisionTransformer(nn.Module):
         in_chans = 3
         embed_dim = config.width
         depth = config.layers
+        print(config.widt)
+        print(config.head_width)
         num_heads = config.width // config.head_width
 
         norm_layer = partial(FusedLayerNorm, eps=1e-6) if config.fusedLN else partial(LayerNorm, eps=1e-6),
