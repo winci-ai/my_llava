@@ -623,7 +623,7 @@ class EVAVisionTransformer(nn.Module):
         in_chans = 3
         embed_dim = config.width
         depth = config.layers
-        print(config.widt)
+        print(config.width)
         print(config.head_width)
         num_heads = config.width // config.head_width
 
